@@ -5,13 +5,16 @@ unsigned char buf[LENG];
 
 int PM01Value=0;          //define PM1.0 value of the air detector module
 int PM2_5Value=0;         //define PM2.5 value of the air detector module
-int PM10Value=0;         //define PM10 value of the air detector module
+int PM10Value=0;          //define PM10 value of the air detector module
+float TempValue=0;        //define tempetature value of the air detector module
+float HumiValue=0;        //define humidity value of the air detector module
 
-String apiKey = "NBYXT9O6UVW3G7UG";
+// replace with your thingspeak.com API key 
+String apiKey = "API";
 // replace with your routers SSID
-const char* ssid = "Fimo";
+const char* ssid = "SSID";
 // replace with your routers password
-const char* password = "Fimo@!23";
+const char* password = "password";
 
 const char* server = "api.thingspeak.com";
 WiFiClient client;
@@ -38,20 +41,22 @@ void setup()
 
 void loop()
 {
+  
   if(Serial.find(0x42)){    //start to read when detect 0x42
     Serial.readBytes(buf,LENG);
-
     if(buf[0] == 0x4d){
       if(checkValue(buf,LENG)){
-        PM01Value=transmitPM01(buf); //count PM1.0 value of the air detector module
+        PM01Value=transmitPM01(buf);  //count PM1.0 value of the air detector module
         PM2_5Value=transmitPM2_5(buf);//count PM2.5 value of the air detector module
-        PM10Value=transmitPM10(buf); //count PM10 value of the air detector module 
+        PM10Value=transmitPM10(buf);  //count PM10 value of the air detector module 
+        TempValue=transmitTemp(buf);  //count tempeture value of the air detector module 
+        HumiValue=transmitHumi(buf);  //count humidity value of the air detector module 
       }           
     } 
   }
 
   static unsigned long OledTimer=millis();  
-    if (millis() - OledTimer >=1000) 
+    if (millis() - OledTimer >=15000) //delay between readings - 15000 milliseconds is 15 seconds
     {
       OledTimer=millis(); 
       
@@ -66,6 +71,14 @@ void loop()
       Serial.print("PM10 : ");  
       Serial.print(PM10Value);
       Serial.println("  ug/m3");   
+
+      Serial.print("Temp : ");
+      Serial.print(TempValue);
+      Serial.println(" C");
+      
+      Serial.print("Humi : ");
+      Serial.print(HumiValue);
+      Serial.println(" %");
       Serial.println();
 
       if (client.connect(server,80))  // "184.106.153.149" or api.thingspeak.com
@@ -77,8 +90,12 @@ void loop()
         postStr += String(PM2_5Value);
         postStr +="&field3=";
         postStr += String(PM10Value);
+        postStr +="&field4=";
+        postStr += String(TempValue);
+        postStr +="&field5=";
+        postStr += String(HumiValue);
         postStr += "\r\n\r\n";
-        
+       
         client.print("POST /update HTTP/1.1\n");
         client.print("Host: api.thingspeak.com\n");
         client.print("Connection: close\n");
@@ -131,4 +148,16 @@ int transmitPM10(unsigned char *thebuf)
   int PM10Val;
   PM10Val=((thebuf[7]<<8) + thebuf[8]); //count PM10 value of the air detector module  
   return PM10Val;
+}
+int transmitTemp(unsigned char *thebuf)
+{
+   float TempVal;
+   TempVal=((thebuf[23]<<8)  + thebuf[24])/10; //count tempetature value of the air detector module  
+   return TempVal;
+}
+int transmitHumi(unsigned char *thebuf)
+{
+   float HumiVal;
+   HumiVal=((thebuf[25]<<8) + thebuf[26])/10; //count humidity value of the air detector module  
+   return HumiVal;
 }
